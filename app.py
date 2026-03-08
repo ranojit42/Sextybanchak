@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
 import requests
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich import print as rprint
 from rich.progress import Progress
 
 app = Flask(__name__)
+console = Console()
 
 def check_player_info(target_id):
     with Progress() as progress:
@@ -28,6 +33,10 @@ def check_player_info(target_id):
             'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Redmi Note 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
             'accept': 'application/json',
             'content-type': 'application/json',
+            'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'x-datadome-clientid': '6h5F5cx_GpbuNtAkftMpDjsbLcL3op_5W5Z-npxeT_qcEe_7pvil2EuJ6l~JlYDxEALeyvKTz3~LyC1opQgdP~7~UDJ0jYcP5p20IQlT3aBEIKDYLH~cqdfXnnR6FAL0',
         }
 
         json_data = {
@@ -38,10 +47,8 @@ def check_player_info(target_id):
 
         try:
             progress.update(task, advance=30)
-            res = requests.post(
-                'https://shop2game.com/api/auth/player_id_login', 
-                cookies=cookies, headers=headers, json=json_data
-            )
+            res = requests.post('https://shop2game.com/api/auth/player_id_login', 
+                              cookies=cookies, headers=headers, json=json_data)
 
             if res.status_code != 200 or not res.json().get('nickname'):
                 return {"error": "ID NOT FOUND"}
@@ -52,40 +59,41 @@ def check_player_info(target_id):
 
             progress.update(task, advance=35)
 
-            # Ban check
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
             ban_response = requests.get(ban_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 'Accept': 'application/json, text/plain, */*',
+                'authority': 'ff.garena.com',
+                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
                 'referer': 'https://ff.garena.com/en/support/',
+                'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120"',
+                'sec-ch-ua-mobile': '?1',
+                'sec-ch-ua-platform': '"Android"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
                 'x-requested-with': 'B6FksShzIgjfrYImLpTsadjS86sddhFH',
             })
 
             progress.update(task, advance=35)
             ban_data = ban_response.json()
 
-            # Default values
-            is_banned = 0
-            period = 0
-            ban_reason = None
-
-            if ban_data.get("status") == "success" and "data" in ban_data:
+            if ban_data["status"] == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
-                api_reason = ban_data["data"].get("reason", "").strip()
 
                 if is_banned:
-                    # ✅ Fix: fallback reason if API empty
-                    ban_reason = api_reason if api_reason else "use chet"
+                    ban_message = f"Banned for {period} months" if period > 0 else "Banned indefinitely"
                 else:
-                    ban_reason = None
+                    ban_message = "Not banned"
+            else:
+                return {"error": "Failed to retrieve ban status"}
 
             return {
                 "nickname": nickname,
                 "region": region,
-                "ban_status": "Banned" if is_banned else "Not banned",
-                "ban_period": f"{period} months" if is_banned and period > 0 else None,
-                "ban_reason": ban_reason
+                "ban_status": ban_message,
+                "ban_period": f"{period} months" if is_banned and period > 0 else None
             }
 
         except requests.exceptions.RequestException as e:
