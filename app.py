@@ -1,13 +1,8 @@
 from flask import Flask, request, jsonify
 import requests
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich import print as rprint
 from rich.progress import Progress
 
 app = Flask(__name__)
-console = Console()
 
 def check_player_info(target_id):
     with Progress() as progress:
@@ -33,10 +28,6 @@ def check_player_info(target_id):
             'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Redmi Note 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
             'accept': 'application/json',
             'content-type': 'application/json',
-            'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"',
-            'sec-ch-ua-mobile': '?1',
-            'sec-ch-ua-platform': '"Android"',
-            'x-datadome-clientid': '6h5F5cx_GpbuNtAkftMpDjsbLcL3op_5W5Z-npxeT_qcEe_7pvil2EuJ6l~JlYDxEALeyvKTz3~LyC1opQgdP~7~UDJ0jYcP5p20IQlT3aBEIKDYLH~cqdfXnnR6FAL0',
         }
 
         json_data = {
@@ -66,41 +57,27 @@ def check_player_info(target_id):
             ban_response = requests.get(ban_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 'Accept': 'application/json, text/plain, */*',
-                'authority': 'ff.garena.com',
-                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
                 'referer': 'https://ff.garena.com/en/support/',
-                'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120"',
-                'sec-ch-ua-mobile': '?1',
-                'sec-ch-ua-platform': '"Android"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
                 'x-requested-with': 'B6FksShzIgjfrYImLpTsadjS86sddhFH',
             })
 
             progress.update(task, advance=35)
             ban_data = ban_response.json()
 
-            # Default
+            # Default values
             is_banned = 0
             period = 0
-            ban_reason = "Not banned"
+            ban_reason = None
 
-            # Check real ban data
             if ban_data.get("status") == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
                 ban_reason_api = ban_data["data"].get("reason", "").strip()
 
                 if is_banned:
-                    # Use real reason from API if exists, else fallback
-                    if ban_reason_api:
-                        ban_reason = ban_reason_api
-                    else:
-                        # fallback
-                        ban_reason = f"Banned for {period} months" if period > 0 else "Banned indefinitely"
+                    ban_reason = ban_reason_api if ban_reason_api else None
                 else:
-                    ban_reason = "Not banned"
+                    ban_reason = None
 
             return {
                 "nickname": nickname,
@@ -111,8 +88,8 @@ def check_player_info(target_id):
             }
 
         except requests.exceptions.RequestException as e:
-            return {"error": str(e)}@app.route('/bancheck', methods=['GET'])
-            
+            return {"error": str(e)}
+
 @app.route('/bancheck', methods=['GET'])
 def check_ban_status():
     uid = request.args.get('uid')
