@@ -61,6 +61,7 @@ def check_player_info(target_id):
 
             progress.update(task, advance=35)
 
+            # Ban check
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
             ban_response = requests.get(ban_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -80,18 +81,24 @@ def check_player_info(target_id):
             progress.update(task, advance=35)
             ban_data = ban_response.json()
 
-            # Default values
+            # Default
             is_banned = 0
             period = 0
             ban_reason = "Not banned"
 
+            # Check real ban data
             if ban_data.get("status") == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
-                ban_reason = ban_data["data"].get("reason", "")  # <-- Ban reason from API
+                ban_reason_api = ban_data["data"].get("reason", "").strip()
 
                 if is_banned:
-                    ban_reason = ban_reason if ban_reason else ("Banned for {period} months" if period > 0 else "Banned indefinitely")
+                    # Use real reason from API if exists, else fallback
+                    if ban_reason_api:
+                        ban_reason = ban_reason_api
+                    else:
+                        # fallback
+                        ban_reason = f"Banned for {period} months" if period > 0 else "Banned indefinitely"
                 else:
                     ban_reason = "Not banned"
 
@@ -104,9 +111,8 @@ def check_player_info(target_id):
             }
 
         except requests.exceptions.RequestException as e:
-            return {"error": str(e)}
-
-@app.route('/bancheck', methods=['GET'])
+            return {"error": str(e)}@app.route('/bancheck', methods=['GET'])
+            
 def check_ban_status():
     uid = request.args.get('uid')
     if not uid:
