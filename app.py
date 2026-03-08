@@ -72,14 +72,20 @@ def check_player_info(target_id):
             if ban_data.get("status") == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
-                ban_reason = ban_data["data"].get("reason", None)  # ✅ original API only
+                api_reason = ban_data["data"].get("reason", "").strip()
+
+                if is_banned:
+                    # ✅ Fix: fallback reason if API empty
+                    ban_reason = api_reason if api_reason else "use chet"
+                else:
+                    ban_reason = None
 
             return {
                 "nickname": nickname,
                 "region": region,
                 "ban_status": "Banned" if is_banned else "Not banned",
                 "ban_period": f"{period} months" if is_banned and period > 0 else None,
-                "ban_reason": ban_reason  # original only, fallback none
+                "ban_reason": ban_reason
             }
 
         except requests.exceptions.RequestException as e:
