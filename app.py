@@ -113,6 +113,7 @@ def check_player_info(target_id):
         except requests.exceptions.RequestException as e:
             return {"error": str(e)}@app.route('/bancheck', methods=['GET'])
             
+@app.route('/bancheck', methods=['GET'])
 def check_ban_status():
     uid = request.args.get('uid')
     if not uid:
