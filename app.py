@@ -47,8 +47,10 @@ def check_player_info(target_id):
 
         try:
             progress.update(task, advance=30)
-            res = requests.post('https://shop2game.com/api/auth/player_id_login', 
-                              cookies=cookies, headers=headers, json=json_data)
+            res = requests.post(
+                'https://shop2game.com/api/auth/player_id_login', 
+                cookies=cookies, headers=headers, json=json_data
+            )
 
             if res.status_code != 200 or not res.json().get('nickname'):
                 return {"error": "ID NOT FOUND"}
@@ -78,22 +80,27 @@ def check_player_info(target_id):
             progress.update(task, advance=35)
             ban_data = ban_response.json()
 
-            if ban_data["status"] == "success" and "data" in ban_data:
+            # Default values
+            is_banned = 0
+            period = 0
+            ban_reason = "Not banned"
+
+            if ban_data.get("status") == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
+                ban_reason = ban_data["data"].get("reason", "")  # <-- Ban reason from API
 
                 if is_banned:
-                    ban_message = f"Banned for {period} months" if period > 0 else "Banned indefinitely"
+                    ban_reason = ban_reason if ban_reason else ("Banned for {period} months" if period > 0 else "Banned indefinitely")
                 else:
-                    ban_message = "Not banned"
-            else:
-                return {"error": "Failed to retrieve ban status"}
+                    ban_reason = "Not banned"
 
             return {
                 "nickname": nickname,
                 "region": region,
-                "ban_status": ban_message,
-                "ban_period": f"{period} months" if is_banned and period > 0 else None
+                "ban_status": "Banned" if is_banned else "Not banned",
+                "ban_period": f"{period} months" if is_banned and period > 0 else None,
+                "ban_reason": ban_reason
             }
 
         except requests.exceptions.RequestException as e:
