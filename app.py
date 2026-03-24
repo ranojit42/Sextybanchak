@@ -9,6 +9,53 @@ from rich.progress import Progress
 app = Flask(__name__)
 console = Console()
 
+ban_reason_cache = {}
+
+def get_last_login(uid):
+    try:
+        res = requests.get(f"https://sextyinfo.vercel.app/player-info?uid={uid}", timeout=8)
+
+        if res.status_code != 200:
+            return None
+
+        data = res.json()
+        return data.get("basicInfo", {}).get("lastLoginAt")
+
+    except:
+        return None
+
+
+import random
+
+ban_reason_cache = {}
+
+ban_reason_list = [
+    "3rd Party Apps",
+    "Anti Hack Use",
+    "Illegal Script Use",
+    "Unauthorized Tool Use",
+    "Suspicious Gameplay Activity",
+    "Using Modified Game Files",
+    "Unfair Advantage Detected",
+    "Abnormal Damage Hack",
+    "Speed Hack Detected"
+]
+
+
+def get_last_login(uid):
+    try:
+        res = requests.get(f"https://sextyinfo.vercel.app/player-info?uid={uid}", timeout=8)
+
+        if res.status_code != 200:
+            return None
+
+        data = res.json()
+        return data.get("basicInfo", {}).get("lastLoginAt")
+
+    except:
+        return None
+
+
 def check_player_info(target_id):
     with Progress() as progress:
         task = progress.add_task("[cyan]Fetching player data...", total=100)
@@ -47,8 +94,12 @@ def check_player_info(target_id):
 
         try:
             progress.update(task, advance=30)
-            res = requests.post('https://shop2game.com/api/auth/player_id_login', 
-                              cookies=cookies, headers=headers, json=json_data)
+            res = requests.post(
+                'https://shop2game.com/api/auth/player_id_login',
+                cookies=cookies,
+                headers=headers,
+                json=json_data
+            )
 
             if res.status_code != 200 or not res.json().get('nickname'):
                 return {"error": "ID NOT FOUND"}
@@ -56,6 +107,9 @@ def check_player_info(target_id):
             player_data = res.json()
             nickname = player_data.get('nickname', 'N/A')
             region = player_data.get('region', 'N/A')
+
+            # -------- Last Login --------
+            last_login = get_last_login(target_id)
 
             progress.update(task, advance=35)
 
@@ -82,18 +136,35 @@ def check_player_info(target_id):
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
 
+                # -------- Generate Unique Reason --------
+                if target_id not in ban_reason_cache:
+                    ban_reason_cache[target_id] = random.choice(ban_reason_list)
+
+                reason = ban_reason_cache[target_id]
+
+                # -------- Fix Output --------
                 if is_banned:
-                    ban_message = f"Banned for {period} months" if period > 0 else "Banned indefinitely"
+                    if period > 0:
+                        ban_status = f"Banned for {period} months"
+                        ban_period = f"{period} months"
+                    else:
+                        ban_status = "Banned indefinitely"
+                        ban_period = None
                 else:
-                    ban_message = "Not banned"
+                    ban_status = "Not banned"
+                    ban_period = None
+                    reason = None
+
             else:
                 return {"error": "Failed to retrieve ban status"}
 
             return {
+                "ban_period": ban_period,
+                "ban_status": ban_status,
+                "ban reseon": reason,
+                "last_login": last_login,
                 "nickname": nickname,
-                "region": region,
-                "ban_status": ban_message,
-                "ban_period": f"{period} months" if is_banned and period > 0 else None
+                "region": region
             }
 
         except requests.exceptions.RequestException as e:
