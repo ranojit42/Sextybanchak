@@ -9,22 +9,6 @@ from rich.progress import Progress
 app = Flask(__name__)
 console = Console()
 
-ban_reason_cache = {}
-
-def get_last_login(uid):
-    try:
-        res = requests.get(f"https://sextyinfo.vercel.app/player-info?uid={uid}", timeout=8)
-
-        if res.status_code != 200:
-            return None
-
-        data = res.json()
-        return data.get("basicInfo", {}).get("lastLoginAt")
-
-    except:
-        return None
-
-
 import random
 
 ban_reason_cache = {}
