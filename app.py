@@ -19,9 +19,18 @@ from datetime import datetime
 from rich.progress import Progress
 
 # -------- TIMESTAMP FIX --------
-def ts(x):
+def convert_time(x):
     try:
+        if x is None:
+            return "Unknown"
+
+        # যদি already formatted string হয়
+        if isinstance(x, str) and "-" in x:
+            return x
+
+        # যদি timestamp হয়
         return datetime.fromtimestamp(int(x)).strftime("%Y-%m-%d %H:%M:%S")
+
     except:
         return "Unknown"
 
@@ -107,8 +116,8 @@ def check_player_info(target_id):
             region = player_data.get('region', 'N/A')
 
             # -------- Last Login FIX --------
-            last_login = ts(get_last_login(target_id))
-
+            last_login = convert_time(get_last_login(target_id))
+                    
             progress.update(task, advance=35)
 
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
