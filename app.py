@@ -109,7 +109,7 @@ def check_player_info(target_id):
             region = player_data.get('region', 'N/A')
 
             # -------- Last Login --------
-            last_login = get_last_login(target_id)
+            last_login = ts(get_last_login(target_id))
 
             progress.update(task, advance=35)
 
