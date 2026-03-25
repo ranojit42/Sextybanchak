@@ -62,6 +62,7 @@ ban_reason_list = [
 ]
 
 
+
 def check_player_info(target_id):
     with Progress() as progress:
         task = progress.add_task("[cyan]Fetching player data...", total=100)
@@ -117,13 +118,23 @@ def check_player_info(target_id):
 
             # -------- Last Login FIX --------
             last_login = convert_time(get_last_login(target_id))
+
             progress.update(task, advance=35)
 
-            # -------- BAN STATUS --------
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
             ban_response = requests.get(ban_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 'Accept': 'application/json, text/plain, */*',
+                'authority': 'ff.garena.com',
+                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                'referer': 'https://ff.garena.com/en/support/',
+                'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120"',
+                'sec-ch-ua-mobile': '?1',
+                'sec-ch-ua-platform': '"Android"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
+                'x-requested-with': 'B6FksShzIgjfrYImLpTsadjS86sddhFH',
             })
 
             progress.update(task, advance=35)
@@ -134,11 +145,14 @@ def check_player_info(target_id):
                 period = ban_data["data"].get("period", 0)
 
                 # -------- UNIQUE BAN REASON --------
-                if target_id not in ban_reason_cache:
-                    ban_reason_cache[target_id] = random.choice(ban_reason_list)
-                reason = ban_reason_cache[target_id]
+                if is_banned == 1:
 
-                if is_banned:
+                    if target_id in ban_reason_cache:
+                        reason = ban_reason_cache[target_id]
+                    else:
+                        reason = random.choice(ban_reason_list)
+                        ban_reason_cache[target_id] = reason
+
                     if period > 0:
                         ban_status = f"Banned for {period} months"
                         ban_period = f"{period} months"
@@ -146,36 +160,36 @@ def check_player_info(target_id):
                         ban_status = "Banned indefinitely"
                         ban_period = None
 
-                    # -------- BAN DATE CALCULATION --------
-                    from datetime import datetime
+                    # -------- BAN DATE CALCULATION BASED ON LAST LOGIN --------
                     if last_login != "Unknown":
-                        last = datetime.strptime(last_login, "%Y-%m-%d %H:%M:%S")
+                        from datetime import datetime
+                        last_dt = datetime.strptime(last_login, "%Y-%m-%d %H:%M:%S")
                         now = datetime.now()
-                        diff = now - last
+                        diff = now - last_dt
 
                         days = diff.days
                         seconds = diff.seconds
                         months = days // 30
 
-                        ban_date_str = f"{days} days, {months} months, {seconds} sec"
+                        ban_date = f"{days} days, {months} months, {seconds} sec"
                     else:
-                        ban_date_str = "Unknown"
+                        ban_date = "Unknown"
 
                 else:
                     ban_status = "Not banned"
                     ban_period = None
                     reason = None
-                    ban_date_str = None
+                    ban_date = None
 
             else:
                 return {"error": "Failed to retrieve ban status"}
 
             return {
-                "ban reseon": reason,
                 "ban_period": ban_period,
                 "ban_status": ban_status,
+                "ban reseon": reason,
                 "last_login": last_login,
-                "ban date": ban_date_str,
+                "ban date": ban_date,
                 "nickname": nickname,
                 "region": region
             }
