@@ -117,7 +117,7 @@ def check_player_info(target_id):
 
             # -------- Last Login FIX --------
             last_login = convert_time(get_last_login(target_id))
-                    
+
             progress.update(task, advance=35)
 
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
@@ -143,19 +143,22 @@ def check_player_info(target_id):
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
 
-                # -------- UNIQUE BAN REASON --------
-                if target_id not in ban_reason_cache:
-                    ban_reason_cache[target_id] = random.choice(ban_reason_list)
+                # -------- FIXED UNIQUE BAN REASON --------
+                if is_banned == 1:
 
-                reason = ban_reason_cache[target_id]
+                    if target_id in ban_reason_cache:
+                        reason = ban_reason_cache[target_id]
+                    else:
+                        reason = random.choice(ban_reason_list)
+                        ban_reason_cache[target_id] = reason
 
-                if is_banned:
                     if period > 0:
                         ban_status = f"Banned for {period} months"
                         ban_period = f"{period} months"
                     else:
                         ban_status = "Banned indefinitely"
                         ban_period = None
+
                 else:
                     ban_status = "Not banned"
                     ban_period = None
