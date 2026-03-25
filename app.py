@@ -1,114 +1,181 @@
 from flask import Flask, request, jsonify
 import requests
-import random
-from datetime import datetime
-from rich.progress import Progress
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich import print as rprint
+from rich.progress import Progress
 
 app = Flask(__name__)
 console = Console()
 
-# -------------------- CACHE --------------------
+
+            
 ban_reason_cache = {}
 
-# -------------------- BAN REASONS --------------------
-ban_reason_list = [
-    "3rd Party Apps",
-    "Anti Hack Use",
-    "Illegal Script Use",
-    "Unauthorized Tool Use",
-    "Suspicious Gameplay Activity",
-    "Using Modified Game Files",
-    "Unfair Advantage Detected",
-    "Abnormal Damage Hack",
-    "Speed Hack Detected"
-]
+import requests
+import random
+from datetime import datetime
+from rich.progress import Progress
 
-# -------------------- TIME CONVERT --------------------
+# -------- TIMESTAMP FIX --------
 def convert_time(x):
     try:
         if x is None:
             return "Unknown"
+
+        # যদি already formatted string হয়
         if isinstance(x, str) and "-" in x:
             return x
+
+        # যদি timestamp হয়
         return datetime.fromtimestamp(int(x)).strftime("%Y-%m-%d %H:%M:%S")
+
     except:
         return "Unknown"
+
 
 def get_last_login(uid):
     try:
         res = requests.get(f"https://sextyinfo.vercel.app/player-info?uid={uid}", timeout=8)
+
         if res.status_code != 200:
             return None
+
         data = res.json()
         return data.get("basicInfo", {}).get("lastLoginAt")
+
     except:
         return None
 
-# -------------------- CHECK PLAYER INFO --------------------
+
+ban_reason_list = [
+"3rd Party Apps",
+"Anti Hack Use",
+"Illegal Script Use",
+"Unauthorized Tool Use",
+"Suspicious Gameplay Activity",
+"Using Modified Game Files",
+"Unfair Advantage Detected",
+"Abnormal Damage Hack",
+"Speed Hack Detected"
+]
+
+
 def check_player_info(target_id):
     with Progress() as progress:
-        task = progress.add_task("[cyan]Fetching ban status...", total=100)
+        task = progress.add_task("[cyan]Fetching player data...", total=100)
 
-        progress.update(task, advance=20)
+        cookies = {
+            '_ga': 'GA1.1.2123120599.1674510784',
+            '_fbp': 'fb.1.1674510785537.363500115',
+            '_ga_7JZFJ14B0B': 'GS1.1.1674510784.1.1.1674510789.0.0.0',
+            'source': 'mb',
+            'region': 'MA',
+            'language': 'ar',
+            '_ga_TVZ1LG7BEB': 'GS1.1.1674930050.3.1.1674930171.0.0.0',
+            'datadome': '6h5F5cx_GpbuNtAkftMpDjsbLcL3op_5W5Z-npxeT_qcEe_7pvil2EuJ6l~JlYDxEALeyvKTz3~LyC1opQgdP~7~UDJ0jYcP5p20IQlT3aBEIKDYLH~cqdfXnnR6FAL0',
+            'session_key': 'efwfzwesi9ui8drux4pmqix4cosane0y',
+        }
+
+        headers = {
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Origin': 'https://shop2game.com',
+            'Referer': 'https://shop2game.com/app/100067/idlogin',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Redmi Note 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Mobile Safari/537.36',
+            'accept': 'application/json',
+            'content-type': 'application/json',
+            'sec-ch-ua': '"Chromium";v="107", "Not=A?Brand";v="24"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'x-datadome-clientid': '6h5F5cx_GpbuNtAkftMpDjsbLcL3op_5W5Z-npxeT_qcEe_7pvil2EuJ6l~JlYDxEALeyvKTz3~LyC1opQgdP~7~UDJ0jYcP5p20IQlT3aBEIKDYLH~cqdfXnnR6FAL0',
+        }
+
+        json_data = {
+            'app_id': 100067,
+            'login_id': target_id,
+            'app_server_id': 0,
+        }
 
         try:
-            # -------- BAN STATUS --------
+            progress.update(task, advance=30)
+
+            res = requests.post(
+                'https://shop2game.com/api/auth/player_id_login',
+                cookies=cookies,
+                headers=headers,
+                json=json_data
+            )
+
+            if res.status_code != 200 or not res.json().get('nickname'):
+                return {"error": "ID NOT FOUND"}
+
+            player_data = res.json()
+            nickname = player_data.get('nickname', 'N/A')
+            region = player_data.get('region', 'N/A')
+
+            # -------- Last Login FIX --------
+            last_login = convert_time(get_last_login(target_id))
+                    
+            progress.update(task, advance=35)
+
             ban_url = f'https://ff.garena.com/api/antihack/check_banned?lang=en&uid={target_id}'
             ban_response = requests.get(ban_url, headers={
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                 'Accept': 'application/json, text/plain, */*',
-            }, timeout=8)
-            progress.update(task, advance=40)
+                'authority': 'ff.garena.com',
+                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                'referer': 'https://ff.garena.com/en/support/',
+                'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120"',
+                'sec-ch-ua-mobile': '?1',
+                'sec-ch-ua-platform': '"Android"',
+                'sec-fetch-dest': 'empty',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-origin',
+                'x-requested-with': 'B6FksShzIgjfrYImLpTsadjS86sddhFH',
+            })
+
+            progress.update(task, advance=35)
             ban_data = ban_response.json()
 
-            is_banned = 0
-            period = 0
-            if ban_data.get("status") == "success" and "data" in ban_data:
+            if ban_data["status"] == "success" and "data" in ban_data:
                 is_banned = ban_data["data"].get("is_banned", 0)
                 period = ban_data["data"].get("period", 0)
+
+                # -------- UNIQUE BAN REASON --------
+                if target_id not in ban_reason_cache:
+                    ban_reason_cache[target_id] = random.choice(ban_reason_list)
+
+                reason = ban_reason_cache[target_id]
+
+                if is_banned:
+                    if period > 0:
+                        ban_status = f"Banned for {period} months"
+                        ban_period = f"{period} months"
+                    else:
+                        ban_status = "Banned indefinitely"
+                        ban_period = None
+                else:
+                    ban_status = "Not banned"
+                    ban_period = None
+                    reason = None
+
             else:
                 return {"error": "Failed to retrieve ban status"}
 
-            # -------- FIXED UNIQUE BAN REASON --------
-            if is_banned:
-                if target_id in ban_reason_cache:
-                    reason = ban_reason_cache[target_id]
-                else:
-                    reason = random.choice(ban_reason_list)
-                    ban_reason_cache[target_id] = reason
-
-                if period > 0:
-                    ban_status = f"Banned for {period} months"
-                    ban_period = f"{period} months"
-                else:
-                    ban_status = "Banned indefinitely"
-                    ban_period = None
-            else:
-                ban_status = "Not banned"
-                ban_period = None
-                reason = None
-
-            progress.update(task, advance=20)
-
-            # -------- LAST LOGIN --------
-            last_login = convert_time(get_last_login(target_id))
-            progress.update(task, advance=20)
-
-            # -------- RETURN CLEAN DATA --------
             return {
                 "ban_period": ban_period,
                 "ban_status": ban_status,
-                "ban_reason": reason,
+                "ban reseon": reason,
                 "last_login": last_login,
-                "nickname": "Unknown",
-                "region": "Unknown"
+                "nickname": nickname,
+                "region": region
             }
 
         except requests.exceptions.RequestException as e:
             return {"error": str(e)}
 
-# -------------------- FLASK ROUTE --------------------
 @app.route('/bancheck', methods=['GET'])
 def check_ban_status():
     uid = request.args.get('uid')
